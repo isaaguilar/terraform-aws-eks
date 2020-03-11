@@ -2,19 +2,13 @@ data "aws_caller_identity" "current" {
 }
 
 data "template_file" "launch_template_worker_role_arns" {
-  count    = var.create_eks ? local.worker_group_launch_template_count : 0
+  for_each = var.worker_groups_launch_template
   template = file("${path.module}/templates/worker-role.tpl")
 
   vars = {
-    worker_role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${element(
-      coalescelist(
-        aws_iam_instance_profile.workers_launch_template.*.role,
-        data.aws_iam_instance_profile.custom_worker_group_launch_template_iam_instance_profile.*.role_name,
-      ),
-      count.index,
-    )}"
+    worker_role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${aws_iam_instance_profile.workers_launch_template[each.key].role}"
     platform = lookup(
-      var.worker_groups_launch_template[count.index],
+      var.worker_groups_launch_template[each.key],
       "platform",
       local.workers_group_defaults["platform"]
     )
@@ -60,7 +54,7 @@ resource "kubernetes_config_map" "aws_auth" {
 
   data = {
     mapRoles = <<EOF
-${join("", distinct(concat(data.template_file.launch_template_worker_role_arns.*.rendered, data.template_file.worker_role_arns.*.rendered, data.template_file.node_group_arns.*.rendered
+${join("", distinct(concat([for _, v in data.template_file.launch_template_worker_role_arns : v.rendered], data.template_file.worker_role_arns.*.rendered, data.template_file.node_group_arns.*.rendered
 )))}
 %{if length(var.map_roles) != 0}${yamlencode(var.map_roles)}%{endif}
     EOF

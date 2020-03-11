@@ -104,8 +104,8 @@ variable "workers_group_defaults" {
 
 variable "worker_groups_launch_template" {
   description = "A list of maps defining worker group configurations to be defined using AWS Launch Templates. See workers_group_defaults for valid keys."
-  type        = any
-  default     = []
+  type        = map
+  default     = {}
 }
 
 variable "worker_security_group_id" {
